@@ -47,15 +47,5 @@ python visualization_analysis.py        # or open in Jupyter Notebook
 - **As a plain script:** every chart is saved into `./charts/` (e.g. `chart_01.png`).
 
 
-
-```bash
-python visualization_analysis.py        # or open in Jupyter Notebook
-```
-
-- **In Jupyter:** every chart displays inline.
-- **As a plain script:** every chart is saved into `./charts/` (e.g. `chart_01.png`).
-
-
-
 Each chart carries the session's manager's lens — for every plot ask:
 **WHAT does it tell us? / SO WHAT does it matter? / NOW WHAT should we do?**
