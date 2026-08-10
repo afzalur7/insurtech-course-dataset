@@ -15,6 +15,12 @@ Synthetic insurance dataset used throughout the **Insurtech & Digital Risk Solut
 | `generate_dataset.py` | The generator script — regenerates all six CSVs (`python generate_dataset.py`) |
 | `data_analysis.py` | The cleaning & analysis pipeline used in Session 05 |
 
+| `session-06/visualization_analysis.py` | The complete Session 6 visualization script (every chart, section-bannered) |
+
+## Session scripts
+
+- **Session 5 — Data cleaning pipeline:** `data_analysis.py` (load → clean → merge → quality report → save `insurance_cleaned.csv`)
+- **Session 6 — Data visualization:** `session-06/visualization_analysis.py` (every chart from the session, section-bannered; see `session-06/README.md` for the section map)
 ## How to use
 
 1. **Download** the six CSV files into a folder named `data/` (or clone this repo).
