@@ -28,13 +28,59 @@ Manager's lens: for each chart ask WHAT / SO WHAT / NOW WHAT.
 # ============================================================
 
 # Standard imports
-import pandas as pd
+import os
+import warnings
 import numpy as np
+import pandas as pd
+
+# --- Environment detection: Jupyter notebook vs. plain script ---
+# In a plain script (python visualization_analysis.py), the display
+# backend cannot show charts, so we switch to the Agg backend and
+# SAVE every chart into the charts/ folder instead.
+try:
+    from IPython import get_ipython
+    IS_JUPYTER = get_ipython() is not None
+except ImportError:
+    IS_JUPYTER = False
+
+import matplotlib
+if IS_JUPYTER:
+    # Inside Jupyter — use inline display
+    get_ipython().run_line_magic('matplotlib', 'inline')
+else:
+    # Plain script — non-interactive backend; charts will be SAVED
+    matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Display plots in the notebook
-# %matplotlib inline   # (uncomment in Jupyter)
+# Ignore harmless environment warnings (Axes3D, scipy versions)
+warnings.filterwarnings('ignore', module='matplotlib')
+warnings.filterwarnings('ignore', module='scipy')
+
+# Where plain-script charts are saved
+CHARTS_DIR = 'charts'
+os.makedirs(CHARTS_DIR, exist_ok=True)
+_chart_counter = [0]
+
+def show_chart(fname=None):
+    """Display the current chart.
+
+    - In Jupyter: renders inline.
+    - In a plain script: saves the chart to charts/ (Agg backend has
+      no display, so show_chart() would otherwise warn and do nothing).
+    """
+    _chart_counter[0] += 1
+    fig = plt.gcf()
+    if not IS_JUPYTER:
+        if fname is None:
+            fname = f'chart_{_chart_counter[0]:02d}.png'
+        path = os.path.join(CHARTS_DIR, fname)
+        fig.savefig(path, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        print(f"[saved] {path}")
+    else:
+        plt.show()
 
 # Set a consistent style
 plt.style.use('seaborn-v0_8-darkgrid')  # clean, modern look
@@ -49,6 +95,9 @@ df = pd.read_csv('data/insurance_cleaned.csv')
 df['claim_date'] = pd.to_datetime(df['claim_date'])
 
 print("Setup complete. Dataset:", df.shape)
+if not IS_JUPYTER:
+    print(f"Running as a plain script: every chart will be saved into ./{CHARTS_DIR}/")
+    print("Tip: run this in Jupyter Notebook to see charts inline instead.")
 
 
 # --- 2.2 The anatomy of a Matplotlib figure -----------------
@@ -61,7 +110,7 @@ ax.set_ylabel('Y-Axis Label', fontsize=11)
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.show()
+show_chart()
 
 
 # --- 2.3 Essential customizations ----------------------------
@@ -87,7 +136,7 @@ plt.xlabel('Policy Type')
 plt.ylabel('Claim Amount (₹)')
 plt.xticks(rotation=45)
 plt.tight_layout()
-plt.show()
+show_chart()
 # Box = interquartile range (Q1-Q3); line inside = median;
 # whiskers = 1.5x IQR; points beyond = potential outliers.
 
@@ -97,7 +146,7 @@ plt.figure(figsize=(12, 6))
 sns.violinplot(data=df, x='policy_type', y='claim_amount', palette='muted')
 plt.title('Claim Amount Distribution: Shape & Density', fontweight='bold')
 plt.tight_layout()
-plt.show()
+show_chart()
 # Wider sections = more observations at that value.
 
 
@@ -110,7 +159,7 @@ sns.pairplot(
 )
 plt.suptitle('Pairwise Relationships: Insurance Variables', y=1.02, fontweight='bold')
 plt.tight_layout()
-plt.show()
+show_chart()
 # Always sample for pair plots when n > 5000.
 
 
@@ -120,11 +169,11 @@ g = sns.FacetGrid(
     col='policy_type', row='status', hue='policy_type',
     height=4, aspect=1.2, sharex=False
 )
-g.map(sns.histplot, 'claim_amount', bins=30, kde=True, alpha=0.6)
+g.map(sns.histplot, 'claim_amount', bins=30, kde=False, alpha=0.6)
 g.add_legend()
 g.figure.suptitle('Claim Amount Distribution by Policy Type and Status', y=1.02, fontweight='bold')
 plt.tight_layout()
-plt.show()
+show_chart()
 
 
 # ============================================================
@@ -132,7 +181,7 @@ plt.show()
 # ============================================================
 
 # --- 4.1 Monthly claims trend (bars + 3-month rolling average) ---
-monthly_claims = df.set_index('claim_date').resample('M').agg({
+monthly_claims = df.set_index('claim_date').resample('ME').agg({
     'claim_id': 'count',
     'claim_amount': 'sum',
     'premium': 'mean'
@@ -161,7 +210,7 @@ ax1.annotate(f"Peak: {int(monthly_claims.loc[max_idx, 'claim_count'])} claims",
              arrowprops=dict(arrowstyle='->', color='red'),
              fontsize=10, color='red', ha='center')
 plt.tight_layout()
-plt.show()
+show_chart()
 
 print(f"Period: {monthly_claims['claim_date'].min().strftime('%b %Y')} to "
       f"{monthly_claims['claim_date'].max().strftime('%b %Y')}")
@@ -195,7 +244,7 @@ ax.set_xlabel('Month')
 ax.set_ylabel('Number of Claims')
 ax.legend(); ax.grid(True, alpha=0.3)
 ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 total_y0 = monthly_claims[monthly_claims['year'] == last_two[0]]['claim_count'].sum()
 total_y1 = monthly_claims[monthly_claims['year'] == last_two[1]]['claim_count'].sum()
@@ -233,7 +282,7 @@ for bar in bars:
 ax.set_title('Total Premium by Product Type (₹ Crores)', fontweight='bold')
 ax.set_xlabel('Premium (₹ Crores)')
 ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 
 # --- 5.2 Loss ratio by product & year (grouped bar) ---------
@@ -268,7 +317,7 @@ ax.set_ylabel('Loss Ratio (%)')
 ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 ax.grid(True, alpha=0.3, axis='y')
 ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 
 # --- 5.3 Channel performance (stacked bar) ------------------
@@ -292,7 +341,7 @@ ax.set_title('Premium Distribution by Channel and Product (₹)', fontweight='bo
 ax.set_xlabel('Total Premium')
 ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 
 # ============================================================
@@ -306,7 +355,10 @@ claim_main = claim_data[(claim_data >= lower) & (claim_data <= upper)]
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 axes[0].hist(claim_main, bins=50, color='#a29bfe', edgecolor='white', alpha=0.7, density=True)
-sns.kdeplot(claim_main, color='#6c5ce7', linewidth=2, ax=axes[0])
+try:
+    sns.kdeplot(claim_main, color='#6c5ce7', linewidth=2, ax=axes[0])
+except Exception:
+    print("  (KDE overlay skipped — scipy not available in this environment)")
 axes[0].axvline(claim_main.mean(), color='red', linestyle='--', linewidth=1.5,
                 label=f"Mean: ₹{claim_main.mean():,.0f}")
 axes[0].axvline(claim_main.median(), color='green', linestyle='--', linewidth=1.5,
@@ -321,7 +373,7 @@ sns.boxplot(data=df, x='claim_amount', color='#a29bfe', ax=axes[1],
 axes[1].set_title('Claim Amount Box Plot (with outliers)', fontweight='bold')
 axes[1].set_xlabel('Claim Amount (₹)')
 axes[1].spines['top'].set_visible(False); axes[1].spines['right'].set_visible(False)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 skew = claim_data.skew()
 print(f"\nClaim Amount Statistics:")
@@ -358,7 +410,7 @@ if 'days_to_settle' in df.columns:
     axes[1].set_xlabel('Product Type'); axes[1].set_ylabel('Days to Settle')
     axes[1].tick_params(axis='x', rotation=45)
     axes[1].spines['top'].set_visible(False); axes[1].spines['right'].set_visible(False)
-    plt.tight_layout(); plt.show()
+    plt.tight_layout(); show_chart()
 
     print(f"\nAverage settlement time: {settle_data.mean():.0f} days")
     print(f"Median settlement time:  {settle_data.median():.0f} days")
@@ -382,7 +434,7 @@ sns.heatmap(corr_matrix, mask=mask, annot=True, fmt='.2f', cmap='RdBu_r',
             center=0, vmin=-1, vmax=1, square=True, linewidths=0.5,
             cbar_kws={'shrink': 0.8, 'label': 'Correlation Coefficient'}, ax=ax)
 ax.set_title('Correlation Matrix — Insurance Variables', fontweight='bold', fontsize=14)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 corr_pairs = corr_matrix.unstack().dropna()
 corr_pairs = corr_pairs[corr_pairs.index.get_level_values(0) != corr_pairs.index.get_level_values(1)]
@@ -405,7 +457,7 @@ ax.text(0.05, 0.95, f'Correlation: {corr_val:.3f}', transform=ax.transAxes,
 ax.set_title('Premium vs. Claim Amount with Regression Line', fontweight='bold')
 ax.set_xlabel('Premium (₹)'); ax.set_ylabel('Claim Amount (₹)')
 ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 
 # --- 7.3 Multi-dimensional facet scatter --------------------
@@ -415,7 +467,7 @@ g = sns.FacetGrid(sample_multi, col='policy_type', col_wrap=3, height=4,
 g.map(sns.regplot, 'premium', 'claim_amount',
       scatter_kws={'alpha': 0.3, 's': 15}, line_kws={'color': 'red'})
 g.figure.suptitle('Premium vs. Claim Amount by Policy Type', y=1.02, fontweight='bold')
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 
 
 # ============================================================
@@ -482,7 +534,7 @@ lines1, labels1 = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
 ax1.set_title('Premium Growth vs. Loss Ratio: The Sustainability Story', fontweight='bold')
-plt.tight_layout(); plt.show()
+plt.tight_layout(); show_chart()
 # Manager's read: growing premium + stable loss ratio = healthy.
 # Growing premium + rising loss ratio = "growth at any cost".
 
